@@ -1,4 +1,4 @@
-import { Loader, Table } from "@mantine/core";
+import { Group, Loader, Table, Text } from "@mantine/core";
 import { useMantineTheme } from "@mantine/core";
 import { Input, Textarea } from "@mantine/core";
 
@@ -6,6 +6,7 @@ import { Input, Textarea } from "@mantine/core";
 interface DataTableProps {
   data?: MCAPFileInformation[];
   selectedRow?: string;
+  pendingUploads: string[];
   setSelectedRow: React.Dispatch<React.SetStateAction<string>>;
   setSelectedData: React.Dispatch<
     React.SetStateAction<MCAPFileInformation | undefined>
@@ -15,6 +16,7 @@ interface DataTableProps {
 export default function DataTable({
   data,
   selectedRow,
+  pendingUploads,
   setSelectedRow,
   setSelectedData,
 }: DataTableProps) {
@@ -96,6 +98,22 @@ export default function DataTable({
       </Table.Tr>
     ))
   );
+
+  const pendingUploadsRows = pendingUploads.map((upload, index) => (
+    <Table.Tr key={"pendingUpload" + index}>
+      <Table.Td style={{ paddingLeft: "25px", size: "xs" }}>
+        <Group align="center" gap="sm">
+          <Text fz={14}>{upload.replace(".mcap", "")}</Text>
+          <Loader size="xs" />
+        </Group>
+      </Table.Td>
+      <Table.Td />
+      <Table.Td />
+      <Table.Td />
+      <Table.Td />
+    </Table.Tr>
+  ));
+
   return (
     <Table.ScrollContainer
       h="100%"
@@ -116,7 +134,10 @@ export default function DataTable({
             <Table.Th style={{ paddingRight: "25px" }}>Notes</Table.Th>
           </Table.Tr>
         </Table.Thead>
-        <Table.Tbody>{rows}</Table.Tbody>
+        <Table.Tbody>
+          {pendingUploadsRows}
+          {rows}
+        </Table.Tbody>
       </Table>
     </Table.ScrollContainer>
   );

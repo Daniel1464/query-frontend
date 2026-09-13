@@ -43,8 +43,6 @@ type MCAPFileInformation = {
       file_name: string;
     }[];
   };
-  /** Name of the MCAP file. */
-  mcap_file_name: string;
   /** Name of the MATLAB file. */
   matlab_file_name: string;
   /** AWS bucket containing the files. */
