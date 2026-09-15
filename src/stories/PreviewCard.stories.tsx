@@ -1,6 +1,6 @@
 /**
  *
- * This file defines stories for the `PreviewCard` component, showcasing its default behavior 
+ * This file defines stories for the `PreviewCard` component, showcasing its default behavior
  * and interaction with various props.
  *
  * @module PreviewCardStories
@@ -28,14 +28,14 @@ type Story = StoryObj<typeof meta>;
 /**
  * Story: `Default`.
  *
- * Displays the default state of the `PreviewCard` component with `selectedRow` 
+ * Displays the default state of the `PreviewCard` component with `selectedRow`
  * and `selectedData` props set to `undefined`.
  *
  * @type {Story}
  */
 export const Default: Story = {
   args: {
-    selectedRow: undefined,
+    clearSelectedData: () => {},
     selectedData: undefined,
   },
 };
