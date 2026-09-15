@@ -169,57 +169,9 @@ function PreviewCard({ selectedData }: PreviewCardProps) {
     }
   }, [scriptsModalOpened]);
 
-  // const handleScriptSubmit = async () => {
-  //   if (!selectedScript || !selectedData?.id) return;
-
-  //   setLoading(true);
-  //   setError(null);
-  //   setSuccess(null);
-  //   setScriptOutput("");
-
-  //   try {
-  //     // First API call to process the script
-  //     const processResponse = await fetch(
-  //       `${import.meta.env.VITE_API_URL}/mcaps/${selectedData.id}/process?scripts=${selectedScript}`,
-  //       {
-  //         method: "GET",
-  //       },
-  //     );
-
-  //     if (!processResponse.ok) {
-  //       throw new Error("Failed to process script");
-  //     }
-
-  //     // Second API call to get the updated data
-  //     const dataResponse = await fetch(
-  //       `${import.meta.env.VITE_API_URL}/mcaps/${selectedData.id}`,
-  //       {
-  //         method: "GET",
-  //       },
-  //     );
-
-  //     if (!dataResponse.ok) {
-  //       throw new Error("Failed to fetch updated data");
-  //     }
-
-  //     const data = await dataResponse.json();
-
-  //     const mpsRecord = data.data[0]?.mps_record;
-
-  //     if (mpsRecord) {
-  //       setScriptOutput(JSON.stringify(mpsRecord, null, 2));
-  //       setSuccess("Script executed successfully!");
-  //     } else {
-  //       setScriptOutput("No output found");
-  //       setSuccess("Script executed successfully!");
-  //     }
-  //   } catch (error) {
-  //     console.error("Error running script:", error);
-  //     setError("An error occurred while running the script.");
-  //   }
-
-  //   setLoading(false);
-  // };
+  if (!selectedData) {
+    return <></>
+  }
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -264,164 +216,107 @@ function PreviewCard({ selectedData }: PreviewCardProps) {
         <Grid.Col span={3} h={260} className="image-column">
           <img src={velImageUrl} alt="Preview" className="preview-image" />
         </Grid.Col>
-        <Grid.Col span={3} h={260} className="image-column">
-          <SchemaTable />
-        </Grid.Col>
-        <Grid.Col span={3} h={260}>
-          {selectedData ? (
-            <>
-              <PreviewDataDivHeader
-                name={getFileNameWithoutExtension(
-                  selectedData.mcap_files[0].file_name,
+        <Grid.Col span={6} h={260}>
+          <ScrollArea scrollbars="y" h={260} pb={20}>
+            <PreviewDataDivHeader
+              name={getFileNameWithoutExtension(selectedData.mcap_files[0].file_name)}
+              val={""}
+            />
+            {success && (
+              <Notification
+                color="green"
+                onClose={() => setSuccess(null)}
+                style={{ marginTop: 10 }}
+              >
+                {success}
+              </Notification>
+            )}
+            {error && (
+              <Notification
+                color="red"
+                onClose={() => setError(null)}
+                style={{ marginTop: 10 }}
+              >
+                {error}
+              </Notification>
+            )}
+            <PreviewDataDiv
+              name={"Car Model"}
+              val={selectedData.car_model ?? "NA"}
+            />
+            <PreviewDataDiv
+              name={"Time"}
+              val={formatTime(selectedData.date)}
+            />
+            <PreviewDataDiv
+              name={"Date"}
+              val={formatDate(selectedData.date)}
+            />
+            <PreviewDataDiv
+              name={"Location"}
+              val={selectedData.location}
+            />
+            <PreviewDataDiv
+              name={"Event Type"}
+              val={selectedData.event_type ?? null}
+            />
+            <PreviewDataDiv
+              name={"Notes"}
+              val={selectedData.notes ?? null}
+            />
+            <PreviewDataDiv
+              name={"Location"}
+              val={selectedData.location}
+            />
+            <div>
+              <DeleteData selectedData={selectedData} />
+              <CopyButton
+                value={`${origin}${import.meta.env.BASE_URL}?id=${selectedData.id}`}
+              >
+                {({ copied, copy }) => (
+                  <Button
+                    color={copied ? "green" : "#B3A369"}
+                    onClick={copy}
+                    size="compact-md"
+                  >
+                    {copied ? "Copied" : "Copy URL"}
+                  </Button>
                 )}
-                val={""}
-              />
-              <Grid style={{ overflowY: "auto", overflowX: "hidden" }}>
-                <Grid.Col span={12} h={120}>
-                  {success && (
-                    <Notification
-                      color="green"
-                      onClose={() => setSuccess(null)}
-                      style={{ marginTop: 10 }}
-                    >
-                      {success}
-                    </Notification>
-                  )}
-                  {error && (
-                    <Notification
-                      color="red"
-                      onClose={() => setError(null)}
-                      style={{ marginTop: 10 }}
-                    >
-                      {error}
-                    </Notification>
-                  )}
-                  <PreviewDataDiv
-                    name={"Car Model"}
-                    val={selectedData.car_model ?? "NA"}
-                  />
-                  <PreviewDataDiv
-                    name={"Time"}
-                    val={formatTime(selectedData.date)}
-                  />
-                  <PreviewDataDiv
-                    name={"Date"}
-                    val={formatDate(selectedData.date)}
-                  />
-                  <PreviewDataDiv
-                    name={"Location"}
-                    val={selectedData.location}
-                  />
-                  <PreviewDataDiv
-                    name={"Event Type"}
-                    val={selectedData.event_type ?? null}
-                  />
-                  <PreviewDataDiv
-                    name={"Notes"}
-                    val={selectedData.notes ?? null}
-                  />
-                  <PreviewDataDiv
-                    name={"Location"}
-                    val={selectedData.location}
-                  />
-                </Grid.Col>
-              </Grid>
-              <div style={{ textAlign: "center" }}>
-                <DeleteData selectedData={selectedData} />
-                <CopyButton
-                  value={`${origin}${import.meta.env.BASE_URL}?id=${selectedData.id}`}
-                >
-                  {({ copied, copy }) => (
-                    <Button
-                      color={copied ? "green" : "#B3A369"}
-                      onClick={copy}
-                      size="compact-md"
-                    >
-                      {copied ? "Copied" : "Copy URL"}
-                    </Button>
-                  )}
-                </CopyButton>
+              </CopyButton>
+              <Button
+                size="compact-md"
+                color="violet"
+                onClick={() => setScriptsModalOpened(true)}
+              >
+                Scripts
+              </Button>
+              <EditInfo selectedData={selectedData} />
 
-                <Button
-                  size="compact-md"
-                  color="violet"
-                  onClick={() => setScriptsModalOpened(true)}
-                >
-                  Scripts
-                </Button>
-                <EditInfo selectedData={selectedData} />
-
-                {selectedData.mcap_files.map((item) => (
-                  <DownloadButton
-                    buttonText="MCAP"
-                    fileName={item.file_name}
-                    signedUrl={item.signed_url ?? null}
-                    id={selectedData.id}
-                  />
-                ))}
-                {selectedData.mat_files.map((item) => (
-                  <DownloadButton
-                    buttonText={(
-                      item.file_name.split(".").pop() || ""
-                    ).toUpperCase()}
-                    fileName={item.file_name}
-                    signedUrl={item.signed_url}
-                    id={selectedData.id}
-                  />
-                ))}
-                {/*<MatFileUpload fileName={getFileNameWithoutExtension(selectedData.mcap_files[0].file_name)} uniqueID={selectedData.id} uploadUrl={""}/>*/}
-                {/* Will be available once route is ready */}
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <Text size="md" fw={700}>
-                  No file selected
-                </Text>
-              </div>
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <Text size="xs" fw={700}>
-                  Date:{" "}
-                </Text>
-                <span style={{ marginLeft: "5px" }} />
-                <Text size="xs" fw={400}>
-                  NA
-                </Text>
-              </div>
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <Text size="xs" fw={700}>
-                  Time:{" "}
-                </Text>
-                <span style={{ marginLeft: "5px" }} />
-                <Text size="xs" fw={400}>
-                  NA
-                </Text>
-              </div>
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <Text size="xs" fw={700}>
-                  Location:{" "}
-                </Text>
-                <span style={{ marginLeft: "5px" }} />
-                <Text size="xs" fw={400}>
-                  NA
-                </Text>
-              </div>
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <Text size="xs" fw={700}>
-                  Sensors:{" "}
-                </Text>
-                <span style={{ marginLeft: "5px" }} />
-                <Text size="xs" fw={400}>
-                  NA
-                </Text>
-              </div>
-            </>
-          )}
+              {selectedData.mcap_files.map((item) => (
+                <DownloadButton
+                  buttonText="MCAP"
+                  fileName={item.file_name}
+                  signedUrl={item.signed_url ?? null}
+                  id={selectedData.id}
+                />
+              ))}
+              {selectedData.mat_files.map((item) => (
+                <DownloadButton
+                  buttonText={(
+                    item.file_name.split(".").pop() || ""
+                  ).toUpperCase()}
+                  fileName={item.file_name}
+                  signedUrl={item.signed_url}
+                  id={selectedData.id}
+                />
+              ))}
+              {/*<MatFileUpload fileName={getFileNameWithoutExtension(selectedData.mcap_files[0].file_name)} uniqueID={selectedData.id} uploadUrl={""}/>*/}
+              {/* Will be available once route is ready */}
+            </div>
+          </ScrollArea>
         </Grid.Col>
       </Grid>
 
-      <EditInfo selectedData={selectedData} />
       <Modal
         opened={scriptsModalOpened}
         onClose={() => setScriptsModalOpened(false)}
@@ -432,9 +327,7 @@ function PreviewCard({ selectedData }: PreviewCardProps) {
         <Stack>
           <Text size="sm">
             Viewing:{" "}
-            {getFileNameWithoutExtension(
-              selectedData ? selectedData.mcap_files[0].file_name : "",
-            )}
+            {getFileNameWithoutExtension(selectedData.mcap_files[0].file_name)}
           </Text>
 
           <Select
@@ -530,7 +423,7 @@ interface PreviewDataDivProps {
 
 export function PreviewDataDiv({ name, val }: PreviewDataDivProps) {
   return (
-    <div style={{ display: "flex", alignItems: "center" }}>
+    <div style={{ display: "flex", alignItems: "flex-start" }}>
       <Text size="xs" fw={700}>
         {name}:{" "}
       </Text>
@@ -632,73 +525,3 @@ export function DownloadButton({
   );
 }
 
-export const SchemaTable = () => {
-  const initialData = Array.from({ length: 20 }, (_, index) => ({
-    name: `Schema ${index + 1}`,
-    value: `${index + 1 + "." + index + "." + index}`,
-  }));
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filteredData, setFilteredData] = useState(initialData);
-
-  const handleSearch = (term: string) => {
-    const lowercasedTerm = term.toLowerCase();
-    const filtered = initialData.filter(
-      (item) =>
-        item.name.toLowerCase().includes(lowercasedTerm) ||
-        item.value.toLowerCase().includes(lowercasedTerm),
-    );
-    setFilteredData(filtered);
-  };
-
-  return (
-    <div style={{ padding: "15px", overflow: "scroll" }}>
-      <TextInput
-        size="xs"
-        leftSection={<IconSearch />}
-        placeholder="Search schemas - DOES NOT WORK"
-        value={searchTerm}
-        onChange={(e) => {
-          setSearchTerm(e.target.value);
-          handleSearch(e.target.value);
-        }}
-      />
-      <ScrollArea style={{ height: 180, width: 250, padding: 10 }}>
-        <Table
-          striped
-          highlightOnHover
-          horizontalSpacing="sm"
-          verticalSpacing="0.01rem"
-          withRowBorders
-          withTableBorder
-          withColumnBorders
-        >
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Name</Table.Th>
-              <Table.Th>Version</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {filteredData.length > 0 ? (
-              filteredData.map((item, index) => (
-                <Table.Tr key={index}>
-                  <Table.Td style={{ textAlign: "left" }}>{item.name}</Table.Td>
-                  <Table.Td style={{ textAlign: "left" }}>
-                    {item.value}
-                  </Table.Td>
-                </Table.Tr>
-              ))
-            ) : (
-              <Table.Tr>
-                <Table.Td colSpan={2} style={{ textAlign: "center" }}>
-                  No results found
-                </Table.Td>
-              </Table.Tr>
-            )}
-          </Table.Tbody>
-        </Table>
-      </ScrollArea>
-    </div>
-  );
-};

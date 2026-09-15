@@ -75,6 +75,7 @@ function DeleteData({ selectedData }: PreviewCardProps) {
                 loaderProps={{ type: "dots" }}
                 size="compact-md"
                 color="red"
+                ml={0}
                 onClick={() => setDeleteDataModalOpened(true)}
             >
                 Delete
