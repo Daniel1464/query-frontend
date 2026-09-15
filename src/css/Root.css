@@ -32,17 +32,6 @@
     flex-shrink: 0;
 }
 
-.table-contain-result {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding-bottom: 10px;
-    width: 60%;
-    min-width: 60%;
-    overflow: hidden;
-    word-wrap: break-word; 
-    word-break: break-word;
-}
-
 .footer {
     text-align: center;
     background: #9b8b5de5;
@@ -64,10 +53,4 @@
 
 .preview-contain-result {
     z-index: 1000;
-}
-
-.search-container {
-    width: auto;
-    display: flex;
-    justify-content: center;
 }

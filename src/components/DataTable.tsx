@@ -100,7 +100,7 @@ export default function DataTable({
     ))
   );
   return (
-    <Stack>
+    <Stack miw="60%" style={{ flexGrow: 1 }}>
       <Table.ScrollContainer
         h="100%"
         minWidth="100%"
@@ -123,7 +123,13 @@ export default function DataTable({
           <Table.Tbody>{rows}</Table.Tbody>
         </Table>
       </Table.ScrollContainer>
-      <PreviewCard selectedRow={selectedRow} selectedData={selectedData}  />
+      <PreviewCard
+        selectedData={selectedData}
+        clearSelectedData={() => {
+          setSelectedData(undefined);
+          setSelectedRow("");
+        }}
+      />
     </Stack>
   );
 }

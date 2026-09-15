@@ -11,19 +11,18 @@ import {
   rem,
   Table,
   ScrollArea,
-  TextInput,
   Notification,
   CopyButton,
   Modal,
   Select,
   Stack,
   ActionIcon,
+  CloseButton,
 } from "@mantine/core";
 import {
   IconDownload,
   IconChevronDown,
   IconFile,
-  IconSearch,
   IconPlayerPlay,
 } from "@tabler/icons-react";
 
@@ -37,8 +36,8 @@ import "@/css/PreviewCard.css";
 // 5. Schema Table component in Preview card
 
 interface PreviewCardProps {
-  selectedRow?: string;
   selectedData: MCAPFileInformation | undefined;
+  clearSelectedData: () => void;
 }
 
 const origin = window.location.origin;
@@ -89,7 +88,7 @@ type MPSPackages = {
   [key: string]: MPSPackage;
 };
 
-function PreviewCard({ selectedData }: PreviewCardProps) {
+function PreviewCard({ selectedData, clearSelectedData }: PreviewCardProps) {
   function formatMPSResult(version: string, funcName: string): string {
     // check if result exists
     if (selectedData?.mps_record?.[version]?.[funcName]?.result) {
@@ -170,7 +169,7 @@ function PreviewCard({ selectedData }: PreviewCardProps) {
   }, [scriptsModalOpened]);
 
   if (!selectedData) {
-    return <></>
+    return <></>;
   }
 
   const formatDate = (dateString: string) => {
@@ -209,6 +208,11 @@ function PreviewCard({ selectedData }: PreviewCardProps) {
 
   return (
     <div className="preview-container">
+      <CloseButton
+        style={{ position: "absolute", top: 0 }}
+        size="md"
+        onClick={clearSelectedData}
+      />
       <Grid>
         <Grid.Col span={3} h={260} className="image-column">
           <img src={latImageUrl} alt="Preview" className="preview-image" />
@@ -219,7 +223,9 @@ function PreviewCard({ selectedData }: PreviewCardProps) {
         <Grid.Col span={6} h={260}>
           <ScrollArea scrollbars="y" h={260} pb={20}>
             <PreviewDataDivHeader
-              name={getFileNameWithoutExtension(selectedData.mcap_files[0].file_name)}
+              name={getFileNameWithoutExtension(
+                selectedData.mcap_files[0].file_name,
+              )}
               val={""}
             />
             {success && (
@@ -244,30 +250,15 @@ function PreviewCard({ selectedData }: PreviewCardProps) {
               name={"Car Model"}
               val={selectedData.car_model ?? "NA"}
             />
-            <PreviewDataDiv
-              name={"Time"}
-              val={formatTime(selectedData.date)}
-            />
-            <PreviewDataDiv
-              name={"Date"}
-              val={formatDate(selectedData.date)}
-            />
-            <PreviewDataDiv
-              name={"Location"}
-              val={selectedData.location}
-            />
+            <PreviewDataDiv name={"Time"} val={formatTime(selectedData.date)} />
+            <PreviewDataDiv name={"Date"} val={formatDate(selectedData.date)} />
+            <PreviewDataDiv name={"Location"} val={selectedData.location} />
             <PreviewDataDiv
               name={"Event Type"}
               val={selectedData.event_type ?? null}
             />
-            <PreviewDataDiv
-              name={"Notes"}
-              val={selectedData.notes ?? null}
-            />
-            <PreviewDataDiv
-              name={"Location"}
-              val={selectedData.location}
-            />
+            <PreviewDataDiv name={"Notes"} val={selectedData.notes ?? null} />
+            <PreviewDataDiv name={"Location"} val={selectedData.location} />
             <div>
               <DeleteData selectedData={selectedData} />
               <CopyButton
@@ -524,4 +515,3 @@ export function DownloadButton({
     </Menu>
   );
 }
-

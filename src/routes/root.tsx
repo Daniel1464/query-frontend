@@ -3,7 +3,6 @@ import SearchBar from "@/components/SearchBar";
 import "@/css/Root.css";
 import DataTable from "@/components/DataTable";
 import { parseAsArrayOf, parseAsString, useQueryState } from "nuqs";
-import { AppShell, Drawer } from "@mantine/core";
 
 export default function Root() {
   const [filteredData, setFilteredData] = useState<MCAPFileInformation[]>();
@@ -32,7 +31,7 @@ export default function Root() {
   );
   const [carModel] = useQueryState("carModel", parseAsString.withDefault(""));
 
-  // corresponds with index.d.ts - type SearchFilter 
+  // corresponds with index.d.ts - type SearchFilter
   const searchFilters = {
     location: selectedLocation,
     date: selectedEventType,
@@ -64,7 +63,7 @@ export default function Root() {
       return data.data as MCAPFileInformation[];
     }
 
-    // corresponds with index.d.ts - type SearchFilter 
+    // corresponds with index.d.ts - type SearchFilter
     const { location, date, eventType, searchText, carModel } = filters;
     let { afterDate, beforeDate } = filters;
 
@@ -102,28 +101,27 @@ export default function Root() {
   };
 
   const updateLocations = (unsortedData: MCAPFileInformation[]) => {
-    const extractedLocations: string[] = 
-      unsortedData
-        .map((item) => item.location)
-        .filter((loc) => loc != null && loc.trim() !== "");
+    const extractedLocations: string[] = unsortedData
+      .map((item) => item.location)
+      .filter((loc) => loc != null && loc.trim() !== "");
     const uniqueLocations = Array.from(new Set(extractedLocations));
     setDistinctLocations(uniqueLocations);
   };
 
   useEffect(() => {
-    fetchData(searchFilters).then(data => {
+    fetchData(searchFilters).then((data) => {
       updateFilteredData(data);
       updateLocations(data);
-    })
+    });
   }, []);
 
   // Two useEffects bc of the way we are handling the Search Button D:
   useEffect(() => {
     if (search) {
-      fetchData(searchFilters).then(data => {
+      fetchData(searchFilters).then((data) => {
         updateFilteredData(data);
         setSearch(false);
-      })
+      });
     }
   }, [search]);
 
@@ -139,7 +137,10 @@ export default function Root() {
           setSelectedRow={setSelectedRow}
           setSelectedData={setSelectedData}
         />
-        <SearchBar setSearch={setSearch} distinctLocations={distinctLocations}/>
+        <SearchBar
+          setSearch={setSearch}
+          distinctLocations={distinctLocations}
+        />
       </div>
     </>
   );
