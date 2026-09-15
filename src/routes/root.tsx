@@ -93,14 +93,12 @@ export default function Root() {
     return data.data as MCAPFileInformation[];
   };
 
-  const updateFilteredData = (unsortedData: MCAPFileInformation[]) => {
-    const sortedData = unsortedData.sort((a, b) => {
+  const filterAndSort = (unsortedData: MCAPFileInformation[]) =>
+    unsortedData.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
       return dateB.getTime() - dateA.getTime();
     });
-    setFilteredData(sortedData);
-  };
 
   const updatePendingUploads = async () => {
     const resp = await fetch(
@@ -123,7 +121,7 @@ export default function Root() {
   useEffect(() => {
     // fetch data on load
     fetchData(searchFilters).then((data) => {
-      updateFilteredData(data);
+      setFilteredData(filterAndSort(data));
       updateLocations(data);
     });
 
@@ -146,7 +144,7 @@ export default function Root() {
       } else if (data.status === "uploaded" && data.data != null) {
         const mcapFileInfo = data.data as MCAPFileInformation;
         const mcapFileName = mcapFileInfo.mcap_files[0].file_name;
-        updateFilteredData([...(filteredData || []), mcapFileInfo]);
+        setFilteredData((dataList) => [...(dataList ?? []), data.data]);
         setPendingUploads((uploads) =>
           uploads.filter((u) => u !== mcapFileName),
         );
@@ -163,7 +161,7 @@ export default function Root() {
   useEffect(() => {
     if (search) {
       fetchData(searchFilters).then((data) => {
-        updateFilteredData(data);
+        setFilteredData(filterAndSort(data));
         setSearch(false);
       });
       updatePendingUploads();
