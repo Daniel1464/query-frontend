@@ -540,6 +540,14 @@ function DownloadButton({
                 return;
               }
               const url = new URL("https://app.foxglove.dev/view");
+              const accepted = window.confirm(
+                `The Foxglove link uses a temporary AWS URL that expires.
+Once it does, new topics won’t load.
+To fix this, simply click “Open in Foxglove” again to get a fresh link.`,
+              );
+              if (!accepted) {
+                return;
+              }
               url.searchParams.append("ds", "remote-file");
               // Foxglove expects a JSON-compliant url, so we use JSON.parse to ensure it is
               url.searchParams.append(
