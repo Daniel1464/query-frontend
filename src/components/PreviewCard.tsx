@@ -24,6 +24,7 @@ import {
   IconChevronDown,
   IconFile,
   IconPlayerPlay,
+  IconExternalLink,
 } from "@tabler/icons-react";
 
 import "@/css/PreviewCard.css";
@@ -285,7 +286,7 @@ function PreviewCard({ selectedData, clearSelectedData }: PreviewCardProps) {
               {selectedData.mcap_files.map((item) => (
                 <DownloadButton
                   buttonText="MCAP"
-                  fileName={item.file_name}
+                  fileKind="MCAP"
                   signedUrl={item.signed_url ?? null}
                   id={selectedData.id}
                 />
@@ -295,7 +296,7 @@ function PreviewCard({ selectedData, clearSelectedData }: PreviewCardProps) {
                   buttonText={(
                     item.file_name.split(".").pop() || ""
                   ).toUpperCase()}
-                  fileName={item.file_name}
+                  fileKind="H5"
                   signedUrl={item.signed_url}
                   id={selectedData.id}
                 />
@@ -445,7 +446,7 @@ export function PreviewDataDivHeader({ name, val }: PreviewDataDivProps) {
 
 interface DownloadButtonProps {
   buttonText: string;
-  fileName: string;
+  fileKind: "MCAP" | "H5";
   signedUrl: string | null;
   id: string;
 }
@@ -461,10 +462,27 @@ function downloadButtonProps(disabled: boolean) {
   };
 }
 
+async function getSignedUrl(id: string, fileKind: "MCAP" | "H5") {
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/mcaps/${id}`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch: ${res.status} ${res.statusText}`);
+  }
+
+  const json = await res.json();
+
+  let signedUrl = json.data[0]?.mcap_files?.[0]?.signed_url;
+  if (fileKind == "H5") {
+    signedUrl = json.data[0].mat_files[0].signed_url;
+  }
+  return signedUrl;
+}
+
 function DownloadButton({
   // add id parameter to pass into API call (use /id call on backend)
   buttonText,
-  fileName,
+  fileKind,
   id,
 }: DownloadButtonProps) {
   return (
@@ -491,22 +509,7 @@ function DownloadButton({
           onClick={async () => {
             // make a call to server to get new sign url
             try {
-              const res = await fetch(
-                `${import.meta.env.VITE_API_URL}/mcaps/${id}`,
-                { credentials: "include" },
-              );
-              if (!res.ok)
-                throw new Error(
-                  `Failed to fetch: ${res.status} ${res.statusText}`,
-                );
-
-              const json = await res.json();
-
-              let signedUrl = json.data[0]?.mcap_files?.[0]?.signed_url;
-              if (buttonText == "H5") {
-                signedUrl = json.data[0].mat_files[0].signed_url;
-              }
-
+              const signedUrl = await getSignedUrl(id, fileKind);
               if (signedUrl) {
                 window.open(signedUrl, "_blank"); // triggers download in new tab
               } else {
@@ -517,8 +520,38 @@ function DownloadButton({
             }
           }}
         >
-          {fileName}
+          Download File
         </Menu.Item>
+        {fileKind === "MCAP" && (
+          <Menu.Item
+            style={{
+              fontSize: "10px",
+            }}
+            leftSection={
+              <IconExternalLink
+                style={{ width: rem(16), height: rem(16) }}
+                stroke={1.5}
+              />
+            }
+            onClick={async () => {
+              const signedFileUrl = await getSignedUrl(id, fileKind);
+              if (!signedFileUrl) {
+                console.error("No signed URL available for this MCAP file");
+                return;
+              }
+              const url = new URL("https://app.foxglove.dev/view");
+              url.searchParams.append("ds", "remote-file");
+              // Foxglove expects a JSON-compliant url, so we use JSON.parse to ensure it is
+              url.searchParams.append(
+                "ds.url",
+                JSON.parse(`"${signedFileUrl}"`),
+              );
+              window.open(url.toString(), "_blank");
+            }}
+          >
+            Open in Foxglove
+          </Menu.Item>
+        )}
       </Menu.Dropdown>
     </Menu>
   );
