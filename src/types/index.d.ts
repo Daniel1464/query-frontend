@@ -26,6 +26,7 @@ type MCAPFileInformation = {
   mcap_files: {
     signed_url: string;
     file_name: string;
+    duration_seconds?: number;
   }[];
   /** List of MATLAB files, each containing file name and signed URL. */
   mat_files: {
