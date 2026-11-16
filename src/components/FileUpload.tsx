@@ -16,7 +16,7 @@ interface FileUploadProps {
   uploadUrl: string;
 }
 
-const FileUpload: React.FC<FileUploadProps> = ({ uploadUrl }) => {
+const FileUpload: React.FC<FileUploadProps> = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -31,82 +31,57 @@ const FileUpload: React.FC<FileUploadProps> = ({ uploadUrl }) => {
     }
   };
 
-  async function uploadMultipart(file: File, partSize = 64 * 1024 * 1024, concurrency = 4) {
+  async function uploadMultipart(file: File, concurrency = 4) {
     const contentType = file.type || "application/octet-stream";
-    const initiateResp = await fetch(`${import.meta.env.VITE_API_URL}/api/v2/uploads/initiate`, {
-      method: "POST",
-      credentials: "include",
-      body: JSON.stringify({
-        fileName: file.name,
-        contentType,
-        size: file.size,
-      })
-    });
-    const init = await initiateResp.json();
-
-    const totalParts = Math.ceil(file.size / partSize);
-    const partNumbers = Array.from({ length: totalParts }, (_, index) => index + 1);
-    const urls = new Map();
-
-    for (let index = 0; index < partNumbers.length; index += 100) {
-      const batch = partNumbers.slice(index, index + 100);
-      console.log(JSON.stringify(init));
-      const resp = await fetch(`${import.meta.env.VITE_API_URL}/api/v2/uploads/parts`, {
+    const init = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/v2/uploads/initiate`,
+      {
         method: "POST",
         credentials: "include",
         body: JSON.stringify({
-          key: init.key,
-          uploadId: init.uploadId,
-          partNumbers: batch,
-        })
-      });
-      if (resp.status !== 200) {
-        throw new Error(await resp.text());
-      }
-      const { parts } = await resp.json();
-      console.log(parts);
-      for (const part of parts) urls.set(part.partNumber, part.url);
-    }
-
-    const completed = new Array(totalParts);
+          fileName: file.name,
+          contentType,
+          size: file.size,
+        }),
+      },
+    );
+    const { partSize, parts, key, uploadId } = await init.json();
+    const completed = new Array(parts.length);
     let next = 0;
 
     async function worker() {
-      while (next < partNumbers.length) {
-        const partNumber = partNumbers[next++];
+      while (next < parts.length) {
+        const { partNumber, url } = parts[next++];
         const start = (partNumber - 1) * partSize;
         const blob = file.slice(start, Math.min(start + partSize, file.size));
-        const response = await fetch(urls.get(partNumber), { method: "PUT", body: blob });
-        if (response.status !== 200 && response.status !== 403) throw new Error(`part ${partNumber} failed: ${response.status}`);
+        const response = await fetch(url, { method: "PUT", body: blob });
+        if (response.status !== 200 && response.status !== 403)
+          throw new Error(`part ${partNumber} failed: ${response.status}`);
         completed[partNumber - 1] = {
           partNumber,
           eTag: response.headers.get("ETag"),
         };
-        setUploadProgress(100 * next / totalParts)
+        setUploadProgress((100 * next) / parts.length);
       }
     }
 
     try {
       await Promise.all(Array.from({ length: concurrency }, worker));
-      await fetch(`${import.meta.env.VITE_API_URL}/api/v2/uploads/complete`, {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/v2/uploads/finalize`, {
         method: "POST",
         credentials: "include",
         body: JSON.stringify({
-          key: init.key,
-          uploadId: init.uploadId,
+          key,
+          uploadId,
           parts: completed,
-        })
-      });
-      await fetch(`${import.meta.env.VITE_API_URL}/api/v2/uploads/finalize`, { 
-        method: "POST",
-        credentials: "include",
-        body: JSON.stringify({ key: init.key })
+          hidden: uploadHiddenFiles,
+        }),
       });
     } catch (error) {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/v2/uploads/abort`, { 
+      await fetch(`${import.meta.env.VITE_API_URL}/api/v2/uploads/abort`, {
         method: "POST",
         credentials: "include",
-        body: JSON.stringify({ key: init.key, uploadId: init.uploadId })
+        body: JSON.stringify({ key, uploadId }),
       });
       throw error;
     }
@@ -118,7 +93,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ uploadUrl }) => {
     setSuccess(null);
     setUploadProgress(0);
     try {
-      await Promise.all(selectedFiles.map(file => uploadMultipart(file)));
+      await Promise.all(selectedFiles.map((file) => uploadMultipart(file)));
       setSuccess("File(s) uploaded successfully!");
       setSelectedFiles([]);
       setUploadProgress(100);
@@ -128,7 +103,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ uploadUrl }) => {
       setLoading(false);
       setError("An unexpected error occurred before sending the request: " + e);
       setUploadProgress(0);
-      throw e
+      throw e;
     }
   };
 
