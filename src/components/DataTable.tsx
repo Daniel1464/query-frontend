@@ -1,4 +1,5 @@
 import {
+  Button,
   Group,
   Input,
   Loader,
@@ -25,6 +26,11 @@ interface DataTableProps {
   setSelectedData: React.Dispatch<
     React.SetStateAction<MCAPFileInformation | undefined>
   >;
+  /** Whether another page is available. */
+  hasMore?: boolean;
+  /** Whether the next page is currently being fetched. */
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 function formatDuration(seconds: number | undefined) {
@@ -45,6 +51,9 @@ export default function DataTable({
   selectedData,
   setSelectedRow,
   setSelectedData,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
 }: DataTableProps) {
   const theme = useMantineTheme();
 
@@ -229,6 +238,21 @@ export default function DataTable({
     ))
   );
 
+  const loadMoreRow = hasMore ? (
+    <Table.Tr>
+      <Table.Td colSpan={100} ta="center" py="md">
+        <Button
+          variant="light"
+          size="xs"
+          loading={loadingMore}
+          onClick={() => onLoadMore?.()}
+        >
+          Load more
+        </Button>
+      </Table.Td>
+    </Table.Tr>
+  ) : null;
+
   const pendingUploadsRows = pendingUploads.map((upload, index) => (
     <Table.Tr key={"pendingUpload" + index}>
       <Table.Td style={{ paddingLeft: "25px", size: "xs" }}>
@@ -293,6 +317,7 @@ export default function DataTable({
           <Table.Tbody>
             {pendingUploadsRows}
             {rows}
+            {loadMoreRow}
           </Table.Tbody>
         </Table>
       </Table.ScrollContainer>

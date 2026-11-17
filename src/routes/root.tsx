@@ -1,9 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import "@/css/Root.css";
 import DataTable from "@/components/DataTable";
 import { parseAsArrayOf, parseAsString, useQueryState } from "nuqs";
 import { notifications } from "@mantine/notifications";
+
+// Number of rows requested per page. The API caps this at 200.
+const PAGE_SIZE = 50;
+
+type McapPage = {
+  data: MCAPFileInformation[];
+  /** Cursor for the next page, or null when there are no more rows. */
+  nextCursor: string | null;
+};
 
 export default function Root() {
   const [pendingUploads, setPendingUploads] = useState<string[]>([]);
@@ -11,6 +20,10 @@ export default function Root() {
   const [selectedRow, setSelectedRow] = useState<string>("");
   const [selectedData, setSelectedData] = useState<MCAPFileInformation>();
   const [distinctLocations, setDistinctLocations] = useState<string[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  // Identifies the active query so responses from superseded requests are dropped.
+  const queryIdRef = useRef(0);
 
   const [searchTerm] = useQueryState("notes", parseAsString.withDefault(""));
   const [selectedId] = useQueryState("id", parseAsString.withDefault(""));
@@ -54,8 +67,12 @@ export default function Root() {
     return new Date(`${year}-${month}-${day}T${time}Z`).toISOString();
   };
 
-  // fetch request of wanted files with filters as Query Params
-  const fetchData = async (filters: SearchFilter) => {
+  // fetch request of wanted files with filters as Query Params.
+  // The first page omits the cursor; later pages pass the previous next_cursor.
+  const fetchData = async (
+    filters: SearchFilter,
+    cursor?: string,
+  ): Promise<McapPage> => {
     if (selectedId != "") {
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/v2/mcaps/${selectedId}`,
@@ -63,7 +80,10 @@ export default function Root() {
       );
 
       const data = await res.json();
-      return data.data as MCAPFileInformation[];
+      return {
+        data: data.data as MCAPFileInformation[],
+        nextCursor: null,
+      };
     }
 
     // corresponds with index.d.ts - type SearchFilter
@@ -82,6 +102,8 @@ export default function Root() {
       ...(beforeDate ? { before_date: beforeDate } : {}),
       ...(searchText ? { search_text: searchText } : {}),
       ...(carModel ? { car_model: carModel } : {}),
+      limit: String(PAGE_SIZE),
+      ...(cursor ? { cursor } : {}),
     };
 
     const queryString = new URLSearchParams(params).toString();
@@ -92,7 +114,44 @@ export default function Root() {
     );
 
     const data = await res.json();
-    return data.data as MCAPFileInformation[];
+    return {
+      data: (data.data ?? []) as MCAPFileInformation[],
+      nextCursor: (data.next_cursor ?? null) as string | null,
+    };
+  };
+
+  // Loads the first page of the current query, replacing any existing rows.
+  // Responses from a superseded query are ignored.
+  const loadFirstPage = async () => {
+    const queryId = ++queryIdRef.current;
+    // Drop the old cursor so "Load more" can't request the previous query's page.
+    setNextCursor(null);
+    const page = await fetchData(searchFilters);
+    if (queryId !== queryIdRef.current) return;
+
+    setFilteredData(filterAndSort(page.data));
+    setNextCursor(page.nextCursor);
+    updateLocations(page.data);
+  };
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+
+    const queryId = queryIdRef.current;
+    const cursor = nextCursor;
+    setLoadingMore(true);
+    try {
+      const page = await fetchData(searchFilters, cursor);
+      if (queryId !== queryIdRef.current) return;
+
+      setFilteredData((current) =>
+        filterAndSort(mergeUnique(current ?? [], page.data)),
+      );
+      setNextCursor(page.nextCursor);
+      addLocations(page.data);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   const filterAndSort = (unsortedData: MCAPFileInformation[]) =>
@@ -101,6 +160,15 @@ export default function Root() {
       const dateB = new Date(b.date);
       return dateB.getTime() - dateA.getTime();
     });
+
+  // Keeps existing rows when a later page repeats a file (e.g. after an SSE insert).
+  const mergeUnique = (
+    current: MCAPFileInformation[],
+    incoming: MCAPFileInformation[],
+  ) => {
+    const knownIds = new Set(current.map((item) => item.id));
+    return [...current, ...incoming.filter((item) => !knownIds.has(item.id))];
+  };
 
   const updatePendingUploads = async () => {
     const resp = await fetch(
@@ -112,20 +180,25 @@ export default function Root() {
     }
   };
 
-  const updateLocations = (unsortedData: MCAPFileInformation[]) => {
-    const extractedLocations: string[] = unsortedData
+  const extractLocations = (unsortedData: MCAPFileInformation[]) =>
+    unsortedData
       .map((item) => item.location)
       .filter((loc) => loc != null && loc.trim() !== "");
-    const uniqueLocations = Array.from(new Set(extractedLocations));
-    setDistinctLocations(uniqueLocations);
+
+  const updateLocations = (unsortedData: MCAPFileInformation[]) => {
+    setDistinctLocations(Array.from(new Set(extractLocations(unsortedData))));
+  };
+
+  // Locations are discovered page by page, so keep options from earlier pages.
+  const addLocations = (data: MCAPFileInformation[]) => {
+    setDistinctLocations((current) =>
+      Array.from(new Set([...current, ...extractLocations(data)])),
+    );
   };
 
   useEffect(() => {
     // fetch data on load
-    fetchData(searchFilters).then((data) => {
-      setFilteredData(filterAndSort(data));
-      updateLocations(data);
-    });
+    loadFirstPage();
 
     // Fetch currently pending MCAP file uploads (most of the time, this is empty)
     updatePendingUploads();
@@ -170,10 +243,7 @@ export default function Root() {
   // Two useEffects bc of the way we are handling the Search Button D:
   useEffect(() => {
     if (search) {
-      fetchData(searchFilters).then((data) => {
-        setFilteredData(filterAndSort(data));
-        setSearch(false);
-      });
+      loadFirstPage().then(() => setSearch(false));
       updatePendingUploads();
     }
   }, [search]);
@@ -190,6 +260,9 @@ export default function Root() {
           selectedData={selectedData}
           setSelectedRow={setSelectedRow}
           setSelectedData={setSelectedData}
+          hasMore={!search && nextCursor != null}
+          loadingMore={loadingMore}
+          onLoadMore={loadMore}
         />
         <SearchBar
           setSearch={setSearch}
