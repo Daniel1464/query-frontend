@@ -27,6 +27,17 @@ interface DataTableProps {
   >;
 }
 
+function formatDuration(seconds: number | undefined) {
+  if (seconds == null) return "Unknown";
+
+  const useMinutes = seconds > 60;
+  const value = useMinutes ? seconds / 60 : seconds;
+  const unit = useMinutes ? "min" : "s";
+  return `${value.toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  })} ${unit}`;
+}
+
 export default function DataTable({
   data,
   selectedRow,
@@ -152,12 +163,21 @@ export default function DataTable({
         bg={selectedRow === file.id ? theme.primaryColor : ""}
       >
         <Table.Td style={{ paddingLeft: "25px", size: "xs" }}>
-          {file.mcap_files
-            ? getFileNameWithoutExtension(file.mcap_files[0].file_name)
-            : null}
+          {file.mcap_files?.map((mcap) => (
+            <div key={mcap.file_name}>
+              {getFileNameWithoutExtension(mcap.file_name)}
+            </div>
+          ))}
         </Table.Td>
         <Table.Td>{file.date}</Table.Td>
         <Table.Td>{file.event_type}</Table.Td>
+        <Table.Td>
+          {file.mcap_files?.map((mcap) => (
+            <div key={mcap.file_name}>
+              {formatDuration(mcap.duration_seconds)}
+            </div>
+          ))}
+        </Table.Td>
         <Table.Td style={{ size: "xs" }}>
           <Input.Wrapper>
             <Textarea
@@ -221,6 +241,7 @@ export default function DataTable({
       <Table.Td />
       <Table.Td />
       <Table.Td />
+      <Table.Td />
       {isLoggedIn ? <Table.Td /> : null}
     </Table.Tr>
   ));
@@ -242,6 +263,7 @@ export default function DataTable({
               <Table.Th style={{ paddingLeft: "25px" }}>Name</Table.Th>
               <Table.Th>Date</Table.Th>
               <Table.Th>Event Type</Table.Th>
+              <Table.Th>Duration</Table.Th>
               <Table.Th>Location</Table.Th>
               <Table.Th
                 style={{ paddingRight: isLoggedIn ? undefined : "25px" }}
