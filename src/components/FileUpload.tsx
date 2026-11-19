@@ -45,6 +45,9 @@ const FileUpload: React.FC<FileUploadProps> = () => {
         }),
       },
     );
+    if (init.status !== 200) {
+      throw new Error(init.statusText);
+    }
     const { partSize, parts, key, uploadId } = await init.json();
     const completed = new Array(parts.length);
     let next = 0;
