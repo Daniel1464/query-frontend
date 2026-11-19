@@ -12,17 +12,14 @@ import "@/css/FileUpload.css";
 
 // File upload Modal and Button
 
-interface FileUploadProps {
-  uploadUrl: string;
-}
-
-const FileUpload: React.FC<FileUploadProps> = () => {
+function FileUpload() {
   const [showModal, setShowModal] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [uploadedBytes, setUploadedBytes] = useState(0);
+  const [totalBytesToUpload, setTotalBytesToUpload] = useState(0);
   const [uploadHiddenFiles, setUploadHiddenFiles] = useState(true);
 
   const handleFileChange = (files: File[]) => {
@@ -64,7 +61,7 @@ const FileUpload: React.FC<FileUploadProps> = () => {
           partNumber,
           eTag: response.headers.get("ETag"),
         };
-        setUploadProgress((100 * next) / parts.length);
+        setUploadedBytes(bytes => bytes + blob.size);
       }
     }
 
@@ -94,18 +91,18 @@ const FileUpload: React.FC<FileUploadProps> = () => {
     setLoading(true);
     setError(null);
     setSuccess(null);
-    setUploadProgress(0);
+    setUploadedBytes(0);
+    setTotalBytesToUpload(selectedFiles.reduce((_, file, __, ___) => file.size, 0))
     try {
       await Promise.all(selectedFiles.map((file) => uploadMultipart(file)));
       setSuccess("File(s) uploaded successfully!");
       setSelectedFiles([]);
-      setUploadProgress(100);
       setLoading(false);
-      setTimeout(() => setUploadProgress(0), 2000);
+      setTimeout(() => setUploadedBytes(0), 2000);
     } catch (e) {
       setLoading(false);
       setError("An unexpected error occurred before sending the request: " + e);
-      setUploadProgress(0);
+      setUploadedBytes(0);
       throw e;
     }
   };
@@ -172,7 +169,7 @@ const FileUpload: React.FC<FileUploadProps> = () => {
             Upload
           </Button>
         </Center>
-        <Progress value={uploadProgress}></Progress>
+        <Progress value={100 * uploadedBytes / totalBytesToUpload} />
 
         {success && (
           <Notification
