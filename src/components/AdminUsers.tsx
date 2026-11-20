@@ -1,5 +1,5 @@
 import "@/css/Navbar.css";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ActionIcon,
   Button,
@@ -23,9 +23,6 @@ const ROW_ACTION_EDGE_OFFSET = -5;
 // (POST /auth/usernames) or remove an existing one (DELETE /auth/usernames). The
 // button is hidden while there is no active session.
 export default function AdminUsers() {
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
   const [showModal, setShowModal] = useState(false);
   const [usernames, setUsernames] = useState<string[]>([]);
   const [isLoadingUsernames, setIsLoadingUsernames] = useState(false);
@@ -35,24 +32,6 @@ export default function AdminUsers() {
   const [removingUsername, setRemovingUsername] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadAuthStatus = async () => {
-      try {
-        const apiUrl = `${import.meta.env.VITE_API_URL}/auth/me`;
-        const response = await fetch(apiUrl, { credentials: "include" });
-        // A 401 means there is no active session, so the button should stay hidden.
-        setIsLoggedIn(response.ok);
-      } catch (error) {
-        console.error("Failed to load auth status:", error);
-        setIsLoggedIn(false);
-      } finally {
-        setIsLoadingAuth(false);
-      }
-    };
-
-    loadAuthStatus();
-  }, []);
 
   const loadUsernames = async () => {
     setIsLoadingUsernames(true);
@@ -163,11 +142,6 @@ export default function AdminUsers() {
       setRemovingUsername(null);
     }
   };
-
-  // Stay hidden until we know the session state, and while logged out.
-  if (isLoadingAuth || !isLoggedIn) {
-    return null;
-  }
 
   return (
     <>

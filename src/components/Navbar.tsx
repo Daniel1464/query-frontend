@@ -4,6 +4,7 @@ import { NavLink } from "react-router-dom";
 import FileUpload from "@/components/FileUpload";
 import AuthOptions from "@/components/AuthOptions";
 import AdminUsers from "@/components/AdminUsers";
+import useAuthStatus from "@/hooks/useAuthStatus";
 import { Button } from "@mantine/core";
 import { IconHelp } from "@tabler/icons-react";
 
@@ -14,6 +15,8 @@ const mainLinksData = [
 ];
 
 export default function Navbar() {
+  const { username, isLoading } = useAuthStatus();
+
   const links = mainLinksData.map(({ name, url }) => (
     <NavLink key={name} className="nav-link" to={url}>
       {name}
@@ -46,11 +49,9 @@ export default function Navbar() {
         >
           <IconHelp size="20" />
         </Button>
-        <FileUpload
-          uploadUrl={`${import.meta.env.VITE_API_URL}/api/v2/mcaps/bulk_upload`}
-        />
-        <AdminUsers />
-        <AuthOptions />
+        {username != null && <FileUpload />}
+        {username != null && <AdminUsers />}
+        <AuthOptions username={username} isLoading={isLoading} />
       </div>
     </nav>
   );

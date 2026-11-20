@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Modal,
   Button,
@@ -12,17 +12,14 @@ import "@/css/FileUpload.css";
 
 // File upload Modal and Button
 
-interface FileUploadProps {
-  uploadUrl: string;
-}
-
-const FileUpload: React.FC<FileUploadProps> = ({ uploadUrl }) => {
+function FileUpload() {
   const [showModal, setShowModal] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [uploadedBytes, setUploadedBytes] = useState(0);
+  const [totalBytesToUpload, setTotalBytesToUpload] = useState(0);
   const [uploadHiddenFiles, setUploadHiddenFiles] = useState(true);
 
   const handleFileChange = (files: File[]) => {
@@ -31,90 +28,82 @@ const FileUpload: React.FC<FileUploadProps> = ({ uploadUrl }) => {
     }
   };
 
+  async function uploadMultipart(file: File, concurrency = 4) {
+    const contentType = file.type || "application/octet-stream";
+    const init = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/v2/uploads/initiate`,
+      {
+        method: "POST",
+        credentials: "include",
+        body: JSON.stringify({
+          fileName: file.name,
+          contentType,
+          size: file.size,
+        }),
+      },
+    );
+    if (init.status !== 200) {
+      throw new Error(init.statusText);
+    }
+    const { partSize, parts, key, uploadId } = await init.json();
+    const completed = new Array(parts.length);
+    let next = 0;
+
+    async function worker() {
+      while (next < parts.length) {
+        const { partNumber, url } = parts[next++];
+        const start = (partNumber - 1) * partSize;
+        const blob = file.slice(start, Math.min(start + partSize, file.size));
+        const response = await fetch(url, { method: "PUT", body: blob });
+        if (response.status !== 200 && response.status !== 403)
+          throw new Error(`part ${partNumber} failed: ${response.status}`);
+        completed[partNumber - 1] = {
+          partNumber,
+          eTag: response.headers.get("ETag"),
+        };
+        setUploadedBytes(bytes => bytes + blob.size);
+      }
+    }
+
+    try {
+      await Promise.all(Array.from({ length: concurrency }, worker));
+      await fetch(`${import.meta.env.VITE_API_URL}/api/v2/uploads/finalize`, {
+        method: "POST",
+        credentials: "include",
+        body: JSON.stringify({
+          key,
+          uploadId,
+          parts: completed,
+          hidden: uploadHiddenFiles,
+        }),
+      });
+    } catch (error) {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/v2/uploads/abort`, {
+        method: "POST",
+        credentials: "include",
+        body: JSON.stringify({ key, uploadId }),
+      });
+      throw error;
+    }
+  }
+
   const handleUpload = async () => {
     setLoading(true);
     setError(null);
     setSuccess(null);
-    setUploadProgress(0);
-    const xhr = new XMLHttpRequest();
-    const formData = new FormData();
-
-    selectedFiles.forEach((file) => {
-      formData.append("files", file, file.name);
-    });
-
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percentComplete = Math.round((event.loaded / event.total) * 100);
-        setUploadProgress(percentComplete);
-      }
-    };
-
-    xhr.onloadstart = () => {
-      setUploadProgress(0);
-    };
-
-    xhr.onload = () => {
-      setLoading(false);
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const result = JSON.parse(xhr.responseText);
-          setSuccess("File(s) uploaded successfully!");
-          console.log("Upload successful:", result);
-          setSelectedFiles([]);
-          setUploadProgress(100);
-          setTimeout(() => setUploadProgress(0), 2000);
-        } catch (e) {
-          console.error("Error parsing server response:", e);
-          setError(
-            "Uploaded successfully, but couldn't parse server response.",
-          );
-          setUploadProgress(0);
-        }
-      } else {
-        let errorMsg =
-          xhr.responseText || `Server responded with status ${xhr.status}`;
-        if (xhr.status === 503) {
-          errorMsg = `${errorMsg} \nTry again in a few minutes!`;
-        }
-        setError(`Failed to upload: ${errorMsg}`);
-        console.error(
-          "Upload failed with status:",
-          xhr.status,
-          xhr.responseText,
-        );
-        setUploadProgress(0);
-      }
-    };
-
-    xhr.onerror = () => {
-      setLoading(false);
-      setError(
-        "An error occurred during the upload. Please check your network connection and try again.",
-      );
-      console.error("XHR onerror triggered");
-      setUploadProgress(0);
-    };
-
-    xhr.onabort = () => {
-      setLoading(false);
-      setError("Upload was aborted.");
-      console.log("XHR onabort triggered");
-      setUploadProgress(0);
-    };
-
+    setUploadedBytes(0);
+    setTotalBytesToUpload(selectedFiles.reduce((_, file, __, ___) => file.size, 0))
     try {
-      xhr.open(
-        "POST",
-        uploadUrl + (uploadHiddenFiles ? "?hidden=true" : ""),
-        true,
-      );
-      xhr.send(formData);
+      await Promise.all(selectedFiles.map((file) => uploadMultipart(file)));
+      setSuccess("File(s) uploaded successfully!");
+      setSelectedFiles([]);
+      setLoading(false);
+      setTimeout(() => setUploadedBytes(0), 2000);
     } catch (e) {
       setLoading(false);
-      setError("An unexpected error occurred before sending the request.");
-      console.error("Error opening or sending XHR:", e);
-      setUploadProgress(0);
+      setError("An unexpected error occurred before sending the request: " + e);
+      setUploadedBytes(0);
+      throw e;
     }
   };
 
@@ -180,7 +169,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ uploadUrl }) => {
             Upload
           </Button>
         </Center>
-        <Progress value={uploadProgress}></Progress>
+        <Progress value={100 * uploadedBytes / totalBytesToUpload} />
 
         {success && (
           <Notification
